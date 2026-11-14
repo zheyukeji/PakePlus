@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能抽选系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .sakura-bg {
+            background-color: #fdf2f8;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(251, 207, 232, 0.5) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(251, 207, 232, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(251, 207, 232, 0.3) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(253, 242, 248, 0.95) 0%, rgba(251, 207, 232, 0.4) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .petal {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle at 30% 30%, #fbcfe8, #f9a8d4);
+            border-radius: 0 50% 0 50%;
+            opacity: 0.6;
+            animation: fall linear infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg) translateX(100px);
+                opacity: 0;
+            }
+        }
+        
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(251, 207, 232, 0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(251, 207, 232, 0.3) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(251, 207, 232, 0.6);
+            box-shadow: 0 4px 30px rgba(244, 114, 182, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px rgba(244, 114, 182, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(244, 114, 182, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary:focus-visible {
+            outline: 3px solid #ec4899;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 6px rgba(236, 72, 153, 0.3);
+        }
+        
+        .drawing-active {
+            animation: shake 0.1s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .result-pop {
+            animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes popIn {
+            0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        
+        .page-transition {
+            animation: fadeSlide 0.4s ease-out;
+        }
+        
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .selected-slot {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            border: 2px solid #f472b6;
+            box-shadow: 0 0 20px rgba(244, 114, 182, 0.3);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fbcfe8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f9a8d4;
+        }
+        
+        .group-card {
+            transition: all 0.3s ease;
+        }
+        .group-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(244, 114, 182, 0.2);
+        }
+        
+        .locked-badge {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+        
+        .tech-border {
+            position: relative;
+        }
+        .tech-border::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #f472b6, #ec4899, #f472b6);
+            border-radius: inherit;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tech-border:hover::after {
+            opacity: 1;
+        }
+        
+        .name-tag {
+            transition: all 0.3s ease;
+        }
+        .name-tag:hover {
+            transform: scale(1.05);
+        }
+        
+        *:focus-visible {
+            outline: 3px solid #ec4899;
+            outline-offset: 2px;
+        }
+        
+        button:focus-visible, 
+        [role="button"]:focus-visible,
+        input:focus-visible {
+            outline: 3px solid #ec4899;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 6px rgba(236, 72, 153, 0.3);
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            
+            .petal {
+                animation: none !important;
+                display: none;
+            }
+        }
+        
+        @media (prefers-contrast: high) {
+            .glass {
+                background: #ffffff;
+                border-color: #000000;
+            }
+            
+            .text-slate-500 {
+                color: #000000;
+            }
+            
+            .btn-primary {
+                background: #ec4899;
+                color: #ffffff;
+            }
+        }
+        
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #ec4899;
+            color: white;
+            padding: 8px;
+            z-index: 1000;
+            transition: top 0.3s;
+        }
+        
+        .skip-link:focus {
+            top: 0;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ffffff;
+            border: 2px solid #f472b6;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* 主页连续滚动样式 */
+        .home-content {
+            max-height: calc(100vh - 8rem);
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            padding-right: 0.5rem;
+        }
+        
+        .home-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .home-content::-webkit-scrollbar-track {
+            background: rgba(251, 207, 232, 0.2);
+            border-radius: 3px;
+        }
+        
+        .home-content::-webkit-scrollbar-thumb {
+            background: #f9a8d4;
+            border-radius: 3px;
+        }
+        
+        .home-content > div {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body class="sakura-bg min-h-screen text-slate-800">
+    <a href="#main-content" class="skip-link" role="button" aria-label="跳到主要内容">
+        跳到主要内容
+    </a>
+    
+    <div class="grid-overlay" aria-hidden="true"></div>
+    
+    <div id="petals-container" aria-hidden="true"></div>
+    
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+    
+    <header class="fixed top-0 left-0 right-0 h-16 glass z-50 flex items-center justify-between px-6 shadow-sm" role="banner">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-lg shadow-lg" aria-hidden="true">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+            </div>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+                智能抽选系统
+            </h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar()" 
+                    class="p-2 rounded-lg hover:bg-pink-50 transition-colors" 
+                    aria-label="切换导航菜单"
+                    aria-expanded="false"
+                    aria-controls="sidebar">
+                <svg class="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+    
+    <aside id="sidebar" 
+           class="fixed left-0 top-16 bottom-0 w-64 glass transform -translate-x-full transition-transform duration-300 z-40 shadow-xl" 
+           role="navigation"
+           aria-label="主导航">
+        <div class="p-6">
+            <nav class="space-y-2" aria-label="功能导航">
+                <button onclick="showPage('home')" 
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-pink-50 transition-all group"
+                        aria-label="返回首页"
+                        aria-current="page">
+                    <svg class="w-5 h-5 text-pink-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span class="font-medium text-slate-700">首页</span>
+                </button>
+                <button onclick="showPage('draw-name')" 
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-pink-50 transition-all group"
+                        aria-label="进入抽名模式">
+                    <svg class="w-5 h-5 text-pink-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span class="font-medium text-slate-700">抽名模式</span>
+                </button>
+                <button onclick="showPage('draw-number')" 
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-pink-50 transition-all group"
+                        aria-label="进入抽号模式">
+                    <svg class="w-5 h-5 text-pink-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                    </svg>
+                    <span class="font-medium text-slate-700">抽号模式</span>
+                </button>
+            </nav>
+            
+            <div class="mt-8 pt-8 border-t border-pink-100">
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">统计信息</h3>
+                <div class="space-y-3" role="list" aria-label="统计信息">
+                    <div class="flex justify-between items-center" role="listitem">
+                        <span class="text-sm text-slate-600">总人数</span>
+                        <span id="stat-total" class="text-sm font-bold text-pink-500" aria-label="总人数">37</span>
+                    </div>
+                    <div class="flex justify-between items-center" role="listitem">
+                        <span class="text-sm text-slate-600">已抽取</span>
+                        <span id="stat-drawn" class="text-sm font-bold text-rose-500" aria-label="已抽取人数">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-8 border-t border-pink-100">
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">数据管理</h3>
+                <div class="space-y-2">
+                    <button onclick="clearHistory()" 
+                            class="w-full px-4 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 text-sm font-medium transition-colors"
+                            aria-label="清除历史记录">
+                        🗑️ 清除历史记录
+                    </button>
+                    <button onclick="clearAllData()" 
+                            class="w-full px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium transition-colors"
+                            aria-label="清除所有数据">
+                        🗑️ 清除所有数据
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+    
+    <div id="overlay" onclick="toggleSidebar()" 
+         class="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 hidden opacity-0 transition-opacity" 
+         aria-hidden="true"></div>
+    
+    <main id="main-content" class="pt-20 pb-8 px-4 min-h-screen relative z-10" role="main">
+        
+        <div id="page-home" class="page-transition max-w-6xl mx-auto" role="tabpanel" aria-label="首页">
+            <!-- 主页连续滚动容器 -->
+            <div class="home-content">
+                <!-- 标题和模式卡片 -->
+                <div>
+                    <div class="text-center mb-12 pt-10">
+                        <h2 class="text-5xl font-bold mb-4 bg-gradient-to-r from-pink-500 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+                            智能抽选系统
+                        </h2>
+                        <p class="text-lg text-slate-500">🌸 公平公正 · 美丽课堂 🌸</p>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                        <div onclick="showPage('draw-name')" 
+                             class="group cursor-pointer" 
+                             role="button" 
+                             tabindex="0"
+                             aria-label="进入抽名模式"
+                             onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showPage('draw-name'); }">
+                            <div class="glass rounded-3xl p-8 tech-border hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+                                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg" aria-hidden="true">
+                                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
+                                </div>
+                                <h3 class="text-2xl font-bold text-slate-800 mb-3">抽名模式</h3>
+                                <p class="text-slate-500 mb-6">从37名同学中随机抽取，每人概率均等，适合课堂提问、活动抽奖等场景</p>
+                                <div class="flex items-center text-pink-500 font-semibold group-hover:translate-x-2 transition-transform">
+                                    进入模式
+                                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div onclick="showPage('draw-number')" 
+                             class="group cursor-pointer" 
+                             role="button" 
+                             tabindex="0"
+                             aria-label="进入抽号模式"
+                             onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showPage('draw-number'); }">
+                            <div class="glass rounded-3xl p-8 tech-border hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+                                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg" aria-hidden="true">
+                                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                                    </svg>
+                                </div>
+                                <h3 class="text-2xl font-bold text-slate-800 mb-3">抽号模式</h3>
+                                <p class="text-slate-500 mb-6">9个小组，一组5人，其他组4人，支持锁定特定组或号，灵活配置抽取范围</p>
+                                <div class="flex items-center text-rose-500 font-semibold group-hover:translate-x-2 transition-transform">
+                                    进入模式
+                                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 班级名单预览 -->
+                <div class="mt-12 max-w-5xl mx-auto">
+                    <div class="glass rounded-2xl p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                            班级名单预览 (37人)
+                        </h3>
+                        <div id="preview-names" class="space-y-3" role="list" aria-label="班级名单">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 最近抽取记录 -->
+                <div class="mt-8 max-w-4xl mx-auto">
+                    <div class="glass rounded-2xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                最近抽取记录
+                            </h3>
+                            <button onclick="clearHistory()" 
+                                    class="px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-medium transition-colors"
+                                    aria-label="清除历史记录">
+                                清除记录
+                            </button>
+                        </div>
+                        <div id="recent-records" class="space-y-2" role="list" aria-label="抽取记录">
+                            <p class="text-slate-400 text-center py-4">暂无记录</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="page-draw-name" class="page-transition max-w-4xl mx-auto hidden" role="tabpanel" aria-label="抽名模式">
+            <div class="mb-6 flex items-center gap-4">
+                <button onclick="showPage('home')" 
+                        class="p-2 rounded-lg hover:bg-white/50 transition-colors"
+                        aria-label="返回首页">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h2 class="text-3xl font-bold text-slate-800">抽名模式</h2>
+            </div>
+            
+            <div class="glass rounded-3xl p-8 mb-6 text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-400 via-rose-400 to-pink-400" aria-hidden="true"></div>
+                
+                <div class="mb-8">
+                    <p class="text-slate-500 mb-2">当前抽取</p>
+                    <div id="name-display" 
+                         class="text-6xl font-bold text-slate-800 min-h-[80px] flex items-center justify-center"
+                         role="status"
+                         aria-live="polite"
+                         aria-label="抽取结果">
+                        准备就绪
+                    </div>
+                </div>
+                
+                <button id="draw-name-btn" 
+                        onclick="startNameDraw()" 
+                        class="btn-primary text-white font-bold text-xl px-12 py-4 rounded-2xl"
+                        aria-label="开始抽取名字">
+                    🌸 开始抽取 🌸
+                </button>
+                
+                <div class="mt-6 flex justify-center gap-4 text-sm text-slate-500" aria-label="抽取统计">
+                    <span class="flex items-center gap-1">
+                        <div class="w-2 h-2 rounded-full bg-pink-400" aria-hidden="true"></div>
+                        剩余: <span id="remaining-names" aria-label="剩余人数">37</span>人
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <div class="w-2 h-2 rounded-full bg-rose-400" aria-hidden="true"></div>
+                        已抽: <span id="drawn-names-count" aria-label="已抽取人数">0</span>人
+                    </span>
+                </div>
+            </div>
+            
+            <div class="glass rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-slate-800">班级名单</h3>
+                    <button onclick="resetNamePool()" 
+                            class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors flex items-center gap-2"
+                            aria-label="重置名单">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        重置
+                    </button>
+                </div>
+                
+                <div id="names-list" 
+                     class="grid grid-cols-4 md:grid-cols-6 gap-3 max-h-96 overflow-y-auto p-2"
+                     role="list"
+                     aria-label="学生名单">
+                </div>
+            </div>
+        </div>
+        
+        <div id="page-draw-number" class="page-transition max-w-7xl mx-auto hidden" role="tabpanel" aria-label="抽号模式">
+            <div class="mb-6 flex items-center gap-4">
+                <button onclick="showPage('home')" 
+                        class="p-2 rounded-lg hover:bg-white/50 transition-colors"
+                        aria-label="返回首页">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h2 class="text-3xl font-bold text-slate-800">抽号模式</h2>
+            </div>
+            
+            <div class="glass rounded-2xl p-6 mb-6">
+                <div class="flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="text-slate-600 font-medium">锁定设置:</span>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white/50 px-3 py-2 rounded-lg hover:bg-white transition-colors">
+                            <input type="checkbox" 
+                                   id="lock-group-mode" 
+                                   class="w-4 h-4 text-pink-500 rounded focus:ring-pink-500" 
+                                   onchange="toggleLockMode()"
+                                   aria-label="锁定组">
+                            <span class="text-sm text-slate-700">锁定组</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white/50 px-3 py-2 rounded-lg hover:bg-white transition-colors">
+                            <input type="checkbox" 
+                                   id="lock-number-mode" 
+                                   class="w-4 h-4 text-pink-500 rounded focus:ring-pink-500" 
+                                   onchange="toggleLockMode()"
+                                   aria-label="锁定号码">
+                            <span class="text-sm text-slate-700">锁定号</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="resetNumberPool()" 
+                                class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors flex items-center gap-2"
+                                aria-label="重置所有号码">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            重置全部
+                        </button>
+                        <button id="draw-number-btn" 
+                                onclick="startNumberDraw()" 
+                                class="btn-primary text-white font-bold px-8 py-3 rounded-xl flex items-center gap-2"
+                                aria-label="开始抽取号码">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            开始抽取
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="lock-selector" class="mt-4 pt-4 border-t border-pink-100 hidden">
+                    <div class="flex flex-wrap gap-8">
+                        <div id="group-lock-panel" class="hidden" role="group" aria-label="选择固定组">
+                            <p class="text-sm font-medium text-slate-700 mb-2">选择固定组</p>
+                            <div class="flex gap-2">
+                                <button onclick="selectLockedGroup(0)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="0" aria-label="选择第1组" aria-pressed="false">1</button>
+                                <button onclick="selectLockedGroup(1)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="1" aria-label="选择第2组" aria-pressed="false">2</button>
+                                <button onclick="selectLockedGroup(2)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="2" aria-label="选择第3组" aria-pressed="false">3</button>
+                                <button onclick="selectLockedGroup(3)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="3" aria-label="选择第4组" aria-pressed="false">4</button>
+                                <button onclick="selectLockedGroup(4)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="4" aria-label="选择第5组" aria-pressed="false">5</button>
+                                <button onclick="selectLockedGroup(5)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="5" aria-label="选择第6组" aria-pressed="false">6</button>
+                                <button onclick="selectLockedGroup(6)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="6" aria-label="选择第7组" aria-pressed="false">7</button>
+                                <button onclick="selectLockedGroup(7)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="7" aria-label="选择第8组" aria-pressed="false">8</button>
+                                <button onclick="selectLockedGroup(8)" class="lock-group-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-pink-400 transition-colors font-bold text-slate-600" data-group="8" aria-label="选择第9组" aria-pressed="false">9</button>
+                            </div>
+                        </div>
+                        <div id="number-lock-panel" class="hidden" role="group" aria-label="选择固定号码">
+                            <p class="text-sm font-medium text-slate-700 mb-2">选择固定号</p>
+                            <div class="flex gap-2" id="number-buttons">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="number-result" 
+                 class="glass rounded-3xl p-8 mb-6 text-center hidden"
+                 role="status"
+                 aria-live="polite"
+                 aria-label="抽取结果">
+                <div class="text-5xl font-bold text-slate-800 mb-2">
+                    第 <span id="result-group" class="text-pink-500">-</span> 组
+                </div>
+                <div class="text-7xl font-bold text-rose-500 mb-4">
+                    <span id="result-number">-</span> 号
+                </div>
+                <p class="text-slate-500">🌸 恭喜选中！🌸</p>
+            </div>
+            
+            <div id="groups-container" 
+                 class="grid grid-cols-2 md:grid-cols-3 gap-4"
+                 role="list"
+                 aria-label="小组列表">
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        const DEFAULT_NAMES = [
+            // 一组（5人）
+            "杨津剑", "刘梦哲", "李欣龙", "付薪怡", "孙政宇",
+            // 二组（4人）
+            "霍羿轩", "刘思成", "张熏月", "李姝潼",
+            // 三组（4人）
+            "潘昊", "刘思淇", "于辰雨", "万佳欣",
+            // 四组（4人）
+            "贾昕旺", "祖鸣阳", "石博宇", "毕语芯",
+            // 五组（4人）
+            "温博", "曹梦瑶", "王梦萱", "刘旭航",
+            // 六组（4人）
+            "付净昕", "邱歆迪", "胡芯菲", "崔洪博",
+            // 七组（4人）
+            "宁圳宇", "薛然曦", "张婉玉", "冯钰涵",
+            // 八组（4人）
+            "刘哲旭", "王思然", "王晗宇", "肖鏡夷",
+            // 九组（4人）
+            "姜可鑫", "单竣", "徐琳茹", "曹梦琪"
+        ];
+        
+        const GROUP_SIZES = [5, 4, 4, 4, 4, 4, 4, 4, 4];
+        const MAX_GROUP_SIZE = 5;
+        const NUM_GROUPS = 9;
+        
+        let names = [];
+        let availableNames = [];
+        let drawnNames = [];
+        let records = [];
+        
+        let groups = [];
+        let availableSlots = [];
+        let drawnSlots = [];
+        let lockedGroup = null;
+        let lockedNumber = null;
+        let isGroupLocked = false;
+        let isNumberLocked = false;
+        
+        function init() {
+            generatePetals();
+            loadDefaultNames();
+            initGroups();
+            renderGroups();
+            updateStats();
+            renderPreviewNames();
+            renderNumberButtons();
+            
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+            
+            window.addEventListener('beforeunload', clearAllDataOnExit);
+            window.addEventListener('unload', clearAllDataOnExit);
+            
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden') {
+                    clearAllDataOnExit();
+                }
+            });
+        }
+        
+        function clearAllDataOnExit() {
+            try {
+                if ('localStorage' in window) {
+                    localStorage.clear();
+                }
+                
+                if ('sessionStorage' in window) {
+                    sessionStorage.clear();
+                }
+                
+                console.log('页面退出，所有数据已清除');
+            } catch (error) {
+                console.error('清除数据失败:', error);
+            }
+        }
+        
+        function generatePetals() {
+            const container = document.getElementById('petals-container');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            
+            if (prefersReducedMotion) {
+                return;
+            }
+            
+            for (let i = 0; i < 15; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'petal';
+                petal.style.left = Math.random() * 100 + '%';
+                petal.style.animationDelay = Math.random() * 10 + 's';
+                petal.style.animationDuration = (8 + Math.random() * 6) + 's';
+                petal.style.opacity = 0.4 + Math.random() * 0.4;
+                container.appendChild(petal);
+            }
+        }
+        
+        function loadDefaultNames() {
+            names = [...DEFAULT_NAMES];
+            availableNames = [...names];
+            drawnNames = [];
+            records = [];
+            renderNamesList();
+            renderRecords();
+        }
+        
+        function renderPreviewNames() {
+            const container = document.getElementById('preview-names');
+            let html = '';
+            let nameIndex = 0;
+            
+            GROUP_SIZES.forEach((size, groupIdx) => {
+                html += `
+                    <div class="mb-3">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-3 py-1 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 text-white text-sm font-bold">
+                                第${groupIdx + 1}组
+                            </span>
+                            <span class="text-xs text-slate-400">${size}人</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 pl-2" role="list">
+                `;
+                
+                for (let i = 0; i < size; i++) {
+                    if (nameIndex < names.length) {
+                        html += `<span class="name-tag px-3 py-1 rounded-full bg-pink-50 text-pink-700 text-sm font-medium border border-pink-100" role="listitem">${names[nameIndex]}</span>`;
+                        nameIndex++;
+                    }
+                }
+                
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function renderNamesList() {
+            const container = document.getElementById('names-list');
+            container.innerHTML = '';
+            
+            names.forEach((name, index) => {
+                const isDrawn = !availableNames.includes(name);
+                const div = document.createElement('div');
+                div.className = `name-tag p-3 rounded-xl text-center text-sm font-medium transition-all cursor-pointer ${
+                    isDrawn 
+                        ? 'bg-slate-100 text-slate-400 line-through' 
+                        : 'bg-gradient-to-br from-pink-50 to-rose-50 text-pink-700 hover:shadow-md border border-pink-100'
+                }`;
+                div.textContent = name;
+                div.setAttribute('role', 'listitem');
+                div.setAttribute('aria-label', `${name}${isDrawn ? '（已抽取）' : ''}`);
+                container.appendChild(div);
+            });
+            
+            document.getElementById('remaining-names').textContent = availableNames.length;
+            document.getElementById('drawn-names-count').textContent = drawnNames.length;
+        }
+        
+        function initGroups() {
+            groups = [];
+            availableSlots = [];
+            drawnSlots = [];
+            
+            for (let g = 0; g < NUM_GROUPS; g++) {
+                const group = [];
+                const size = GROUP_SIZES[g];
+                for (let n = 0; n < size; n++) {
+                    group.push({
+                        group: g,
+                        number: n,
+                        drawn: false,
+                        locked: false
+                    });
+                    availableSlots.push({group: g, number: n});
+                }
+                groups.push(group);
+            }
+        }
+        
+        function renderNumberButtons() {
+            const container = document.getElementById('number-buttons');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < MAX_GROUP_SIZE; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'lock-number-btn w-10 h-10 rounded-lg border-2 border-slate-200 hover:border-rose-400 transition-colors font-bold text-slate-600';
+                btn.textContent = i + 1;
+                btn.onclick = () => selectLockedNumber(i);
+                btn.setAttribute('aria-label', `选择第${i + 1}号`);
+                btn.setAttribute('aria-pressed', 'false');
+                container.appendChild(btn);
+            }
+        }
+        
+        function renderGroups() {
+            const container = document.getElementById('groups-container');
+            container.innerHTML = '';
+            
+            groups.forEach((group, gIndex) => {
+                const card = document.createElement('div');
+                const isGroupLocked = lockedGroup === gIndex;
+                const size = GROUP_SIZES[gIndex];
+                
+                card.className = `group-card glass rounded-2xl p-4 relative overflow-hidden ${isGroupLocked ? 'ring-2 ring-amber-400' : ''}`;
+                card.setAttribute('role', 'listitem');
+                card.setAttribute('aria-label', `第${gIndex + 1}组，共${size}人${isGroupLocked ? '，已锁定' : ''}`);
+                card.innerHTML = `
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 rounded-bl-full -mr-4 -mt-4 opacity-50" aria-hidden="true"></div>
+                    <div class="relative">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-lg font-bold text-slate-800">第 ${gIndex + 1} 组</h4>
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-600">${size}人</span>
+                            </div>
+                            ${isGroupLocked ? '<span class="locked-badge text-white text-xs px-2 py-1 rounded-full">已锁定</span>' : ''}
+                        </div>
+                        <div class="grid gap-2" id="group-${gIndex}-slots">
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+                
+                const slotsContainer = card.querySelector(`#group-${gIndex}-slots`);
+                slotsContainer.className = size === 5 ? 'grid grid-cols-5 gap-2' : 'grid grid-cols-4 gap-2';
+                
+                group.forEach((slot, nIndex) => {
+                    const isLockedNumber = lockedNumber === nIndex && isGroupLocked;
+                    const isDrawn = slot.drawn;
+                    
+                    const slotDiv = document.createElement('div');
+                    slotDiv.className = `h-12 rounded-lg flex items-center justify-center text-base font-bold transition-all cursor-pointer ${
+                        isDrawn 
+                            ? 'bg-slate-200 text-slate-400' 
+                            : isLockedNumber
+                                ? 'selected-slot text-pink-800'
+                                : 'bg-white hover:bg-pink-50 text-slate-700 shadow-sm border border-pink-100'
+                    }`;
+                    slotDiv.textContent = nIndex + 1;
+                    slotDiv.setAttribute('role', 'listitem');
+                    slotDiv.setAttribute('aria-label', `第${gIndex + 1}组${nIndex + 1}号${isDrawn ? '（已抽取）' : ''}${isLockedNumber ? '（已锁定）' : ''}`);
+                    
+                    if (isLockedNumber) {
+                        slotDiv.innerHTML = '<span class="relative z-10">' + (nIndex + 1) + '</span><span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full border-2 border-white"></span>';
+                        slotDiv.style.position = 'relative';
+                    }
+                    
+                    slotsContainer.appendChild(slotDiv);
+                });
+            });
+        }
+        
+        function toggleLockMode() {
+            isGroupLocked = document.getElementById('lock-group-mode').checked;
+            isNumberLocked = document.getElementById('lock-number-mode').checked;
+            
+            const selector = document.getElementById('lock-selector');
+            const groupPanel = document.getElementById('group-lock-panel');
+            const numberPanel = document.getElementById('number-lock-panel');
+            
+            if (isGroupLocked || isNumberLocked) {
+                selector.classList.remove('hidden');
+                groupPanel.classList.toggle('hidden', !isGroupLocked);
+                numberPanel.classList.toggle('hidden', !isNumberLocked);
+            } else {
+                selector.classList.add('hidden');
+                lockedGroup = null;
+                lockedNumber = null;
+                document.querySelectorAll('.lock-group-btn, .lock-number-btn').forEach(btn => {
+                    btn.classList.remove('bg-pink-400', 'bg-rose-400', 'text-white', 'border-pink-400', 'border-rose-400');
+                    btn.classList.add('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'false');
+                });
+            }
+            
+            updateAvailableSlots();
+            renderGroups();
+        }
+        
+        function selectLockedGroup(group) {
+            lockedGroup = group;
+            
+            document.querySelectorAll('.lock-group-btn').forEach((btn, idx) => {
+                if (idx === group) {
+                    btn.classList.add('bg-pink-400', 'text-white', 'border-pink-400');
+                    btn.classList.remove('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'true');
+                } else {
+                    btn.classList.remove('bg-pink-400', 'text-white', 'border-pink-400');
+                    btn.classList.add('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'false');
+                }
+            });
+            
+            updateAvailableSlots();
+            renderGroups();
+        }
+        
+        function selectLockedNumber(number) {
+            lockedNumber = number;
+            
+            document.querySelectorAll('.lock-number-btn').forEach((btn, idx) => {
+                if (idx === number) {
+                    btn.classList.add('bg-rose-400', 'text-white', 'border-rose-400');
+                    btn.classList.remove('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'true');
+                } else {
+                    btn.classList.remove('bg-rose-400', 'text-white', 'border-rose-400');
+                    btn.classList.add('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'false');
+                }
+            });
+            
+            updateAvailableSlots();
+            renderGroups();
+        }
+        
+        function updateAvailableSlots() {
+            availableSlots = [];
+            
+            for (let g = 0; g < NUM_GROUPS; g++) {
+                const size = GROUP_SIZES[g];
+                for (let n = 0; n < size; n++) {
+                    const slot = groups[g][n];
+                    if (slot.drawn) continue;
+                    
+                    if (isGroupLocked && lockedGroup !== null && g !== lockedGroup) continue;
+                    if (isNumberLocked && lockedNumber !== null && n !== lockedNumber) continue;
+                    
+                    availableSlots.push({group: g, number: n});
+                }
+            }
+        }
+        
+        function startNameDraw() {
+            if (availableNames.length === 0) {
+                showToast('所有同学都已抽取完毕！点击重置可重新开始。', 'warning');
+                return;
+            }
+            
+            const btn = document.getElementById('draw-name-btn');
+            const display = document.getElementById('name-display');
+            
+            btn.disabled = true;
+            btn.textContent = '🌸 抽取中... 🌸';
+            btn.setAttribute('aria-busy', 'true');
+            display.classList.add('drawing-active');
+            
+            let rollCount = 0;
+            const maxRolls = 25;
+            const interval = setInterval(() => {
+                const randomName = availableNames[Math.floor(Math.random() * availableNames.length)];
+                display.textContent = randomName;
+                display.style.color = `hsl(${330 + Math.random() * 30}, 80%, 60%)`;
+                rollCount++;
+                
+                if (rollCount >= maxRolls) {
+                    clearInterval(interval);
+                    finalizeNameDraw();
+                }
+            }, 80);
+        }
+        
+        function finalizeNameDraw() {
+            const display = document.getElementById('name-display');
+            const btn = document.getElementById('draw-name-btn');
+            
+            const winnerIndex = Math.floor(Math.random() * availableNames.length);
+            const winner = availableNames[winnerIndex];
+            
+            availableNames.splice(winnerIndex, 1);
+            drawnNames.push(winner);
+            
+            display.classList.remove('drawing-active');
+            display.classList.add('result-pop');
+            display.textContent = winner;
+            display.style.color = '#ec4899';
+            display.style.fontSize = '5rem';
+            
+            setTimeout(() => {
+                display.classList.remove('result-pop');
+                display.style.fontSize = '';
+            }, 600);
+            
+            btn.disabled = false;
+            btn.textContent = '🌸 开始抽取 🌸';
+            btn.setAttribute('aria-busy', 'false');
+            
+            addRecord('抽名', winner);
+            renderNamesList();
+            updateStats();
+        }
+        
+        function startNumberDraw() {
+            updateAvailableSlots();
+            
+            if (availableSlots.length === 0) {
+                showToast('没有可抽取的号码！请检查锁定设置或重置。', 'warning');
+                return;
+            }
+            
+            const btn = document.getElementById('draw-number-btn');
+            const resultDiv = document.getElementById('number-result');
+            
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            btn.innerHTML = `
+                <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                抽取中...
+            `;
+            resultDiv.classList.add('hidden');
+            
+            let rollCount = 0;
+            const maxRolls = 30;
+            let lastHighlighted = null;
+            
+            const interval = setInterval(() => {
+                if (lastHighlighted) {
+                    renderGroups();
+                }
+                
+                const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+                lastHighlighted = randomSlot;
+                
+                const groupEl = document.getElementById(`group-${randomSlot.group}-slots`);
+                if (groupEl) {
+                    const slotEl = groupEl.children[randomSlot.number];
+                    if (slotEl) {
+                        slotEl.style.background = 'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)';
+                        slotEl.style.color = 'white';
+                        slotEl.style.transform = 'scale(1.15)';
+                        slotEl.style.boxShadow = '0 0 30px rgba(244, 114, 182, 0.6)';
+                        slotEl.style.zIndex = '10';
+                        slotEl.style.borderRadius = '12px';
+                    }
+                }
+                
+                rollCount++;
+                if (rollCount >= maxRolls) {
+                    clearInterval(interval);
+                    finalizeNumberDraw();
+                }
+            }, 60);
+        }
+        
+        function finalizeNumberDraw() {
+            const btn = document.getElementById('draw-number-btn');
+            const winnerIndex = Math.floor(Math.random() * availableSlots.length);
+            const winner = availableSlots[winnerIndex];
+            
+            groups[winner.group][winner.number].drawn = true;
+            drawnSlots.push(winner);
+            
+            const resultDiv = document.getElementById('number-result');
+            document.getElementById('result-group').textContent = winner.group + 1;
+            document.getElementById('result-number').textContent = winner.number + 1;
+            resultDiv.classList.remove('hidden');
+            resultDiv.classList.add('result-pop');
+            
+            setTimeout(() => {
+                resultDiv.classList.remove('result-pop');
+            }, 600);
+            
+            btn.disabled = false;
+            btn.setAttribute('aria-busy', 'false');
+            btn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                开始抽取
+            `;
+            
+            addRecord('抽号', `第${winner.group + 1}组 ${winner.number + 1}号`);
+            renderGroups();
+            updateStats();
+        }
+        
+        function resetNamePool() {
+            if (confirm('确定要重置名单吗？')) {
+                availableNames = [...names];
+                drawnNames = [];
+                renderNamesList();
+                document.getElementById('name-display').textContent = '准备就绪';
+                document.getElementById('name-display').style.color = '';
+                updateStats();
+                showToast('名单已重置');
+            }
+        }
+        
+        function resetNumberPool() {
+            if (confirm('确定要重置所有号码吗？')) {
+                initGroups();
+                lockedGroup = null;
+                lockedNumber = null;
+                document.getElementById('lock-group-mode').checked = false;
+                document.getElementById('lock-number-mode').checked = false;
+                document.getElementById('lock-selector').classList.add('hidden');
+                document.getElementById('number-result').classList.add('hidden');
+                
+                document.querySelectorAll('.lock-group-btn, .lock-number-btn').forEach(btn => {
+                    btn.classList.remove('bg-pink-400', 'bg-rose-400', 'text-white', 'border-pink-400', 'border-rose-400');
+                    btn.classList.add('text-slate-600', 'border-slate-200');
+                    btn.setAttribute('aria-pressed', 'false');
+                });
+                
+                renderGroups();
+                updateStats();
+                showToast('号码已重置');
+            }
+        }
+        
+        function clearHistory() {
+            if (confirm('确定要清除所有历史记录吗？')) {
+                records = [];
+                renderRecords();
+                showToast('历史记录已清除', 'success');
+            }
+        }
+        
+        function clearAllData() {
+            if (confirm('确定要清除所有数据吗？')) {
+                loadDefaultNames();
+                initGroups();
+                records = [];
+                renderRecords();
+                renderGroups();
+                renderPreviewNames();
+                updateStats();
+                showToast('所有数据已清除', 'success');
+            }
+        }
+        
+        function addRecord(type, result) {
+            const record = {
+                type,
+                result,
+                time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+                timestamp: Date.now()
+            };
+            records.unshift(record);
+            if (records.length > 50) records.pop();
+            renderRecords();
+        }
+        
+        function renderRecords() {
+            const container = document.getElementById('recent-records');
+            if (records.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-center py-4">暂无记录</p>';
+                return;
+            }
+            
+            container.innerHTML = records.slice(0, 10).map(r => `
+                <div class="flex justify-between items-center p-3 rounded-lg bg-white/50 hover:bg-white transition-colors border border-pink-100" role="listitem">
+                    <div class="flex items-center gap-3">
+                        <span class="px-2 py-1 rounded-lg text-xs font-bold ${r.type === '抽名' ? 'bg-pink-100 text-pink-700' : 'bg-rose-100 text-rose-700'}">${r.type}</span>
+                        <span class="font-medium text-slate-700">${r.result}</span>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">${r.time}</span>
+                </div>
+            `).join('');
+        }
+        
+        function updateStats() {
+            document.getElementById('stat-total').textContent = names.length;
+            document.getElementById('stat-drawn').textContent = drawnNames.length + drawnSlots.length;
+        }
+        
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.setAttribute('role', 'alert');
+            
+            const icon = type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span aria-hidden="true">${icon}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        function handleKeyboardShortcuts(event) {
+            if (event.altKey && event.key === '1') {
+                event.preventDefault();
+                showPage('home');
+            }
+            else if (event.altKey && event.key === '2') {
+                event.preventDefault();
+                showPage('draw-name');
+            }
+            else if (event.altKey && event.key === '3') {
+                event.preventDefault();
+                showPage('draw-number');
+            }
+            else if (event.key === ' ' && !event.target.matches('input, textarea, button')) {
+                const drawNamePage = document.getElementById('page-draw-name');
+                const drawNumberPage = document.getElementById('page-draw-number');
+                
+                if (!drawNamePage.classList.contains('hidden')) {
+                    event.preventDefault();
+                    startNameDraw();
+                } else if (!drawNumberPage.classList.contains('hidden')) {
+                    event.preventDefault();
+                    startNumberDraw();
+                }
+            }
+            else if (event.key === 'Escape') {
+                closeSidebar();
+            }
+        }
+        
+        function showPage(page) {
+            document.getElementById('page-home').classList.add('hidden');
+            document.getElementById('page-draw-name').classList.add('hidden');
+            document.getElementById('page-draw-number').classList.add('hidden');
+            
+            document.getElementById(`page-${page}`).classList.remove('hidden');
+            
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.removeAttribute('aria-current');
+            });
+            
+            const navButtons = {
+                'home': 0,
+                'draw-name': 1,
+                'draw-number': 2
+            };
+            
+            const navBtn = document.querySelectorAll('nav button')[navButtons[page]];
+            if (navBtn) {
+                navBtn.setAttribute('aria-current', 'page');
+            }
+            
+            closeSidebar();
+            
+            const pageTitles = {
+                'home': '智能抽选系统',
+                'draw-name': '抽名模式 - 智能抽选系统',
+                'draw-number': '抽号模式 - 智能抽选系统'
+            };
+            document.title = pageTitles[page];
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const menuBtn = document.querySelector('header button');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+                menuBtn.setAttribute('aria-expanded', 'true');
+            } else {
+                closeSidebar();
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const menuBtn = document.querySelector('header button');
+            
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('opacity-0');
+            menuBtn.setAttribute('aria-expanded', 'false');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
